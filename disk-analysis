@@ -1,0 +1,62 @@
+#!/bin/sh
+
+if [ "`id -u`" != "0" ]; then
+    echo "Need root !" 
+    exit 1
+fi         
+
+MAX_USAGE=30000 # 30G
+EXCEPT_LIST=(chad)
+USAGE_LIST=(1000000)  
+
+any_one=0
+echo "Show the user uses disk size over $MAX_USAGE MBytes ! (`date`)"  
+rm -f /usr/bin/warning.list
+touch /usr/bin/warning.list
+
+for home in `ls / | grep home`
+do
+    total_size_="`df -hB M | grep -w $home | awk '{print $2}'`"
+    len=`expr length $total_size_`
+    total_size=`expr substr $total_size_ 1 $((len-1))`
+
+    users=`ls /$home | grep -v lost+found`
+    [ "$users" = "" ] && continue
+    
+    warning=0
+    for user in $users
+    do      
+        uused_="`du -s -B M  /$home/$user | awk '{print $1}'`"
+        #uused_="$RANDOM""M"
+        len=`expr length $uused_`
+        uused=`expr substr $uused_ 1 $((len-1))`
+
+        max_usage_=
+        for((idx=0; idx < ${#EXCEPT_LIST[@]}; idx=idx+1)) 
+        do 
+            #echo $idx ${EXCEPT_LIST[$idx]}
+            if [ "${EXCEPT_LIST[$idx]}" = "$user" ]; then
+                max_usage_=${USAGE_LIST[$idx]}
+                break
+            fi
+        done
+        [ "$max_usage_" = "" ] && max_usage_=$MAX_USAGE
+
+        if [ $uused -lt $max_usage_ ]; then
+            continue                
+        fi
+        
+        if [ $warning -eq 0 ]; then
+            used="`df -hB M | grep -w $home | awk '{print $5}'`"
+            echo "$home (used $used):"
+        fi
+
+        warning=$((warning+1))
+        echo "$user $uused $total_size" | awk  '{printf(" -> %s %.2f% (%dM/%dM)\n", $1, (100*$2/$3), $2, $3)}'
+        echo "$user" >> /usr/bin/warning.list
+    done
+    any_one=$((any_one + warning))
+done
+
+[ $any_one -eq 0 ] && echo "-> None !"
+

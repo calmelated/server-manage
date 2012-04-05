@@ -1,0 +1,21 @@
+#!/bin/sh
+
+if [ "`id -u`" != "0" ]; then
+    echo "Need root !" 
+    exit 1
+fi       
+ 
+if [ ! -f /etc/motd.orig ]; then 
+    mv /etc/motd /etc/motd.orig
+else
+    rm -f /etc/motd
+fi
+
+disk-analysis > /usr/bin/disk-analysis.result
+cat /etc/motd.orig >> /etc/motd
+cat /usr/bin/disk-analysis.result >> /etc/motd
+echo "======================================================================================" >> /etc/motd
+echo "" >> /etc/motd
+
+#reboot
+
